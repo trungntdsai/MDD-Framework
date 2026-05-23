@@ -1,0 +1,3 @@
+Training device: cuda
+Trainable params: 345158745/349368921 | wav2vec2 trainable: 311228544/315438720
+EPOCH 0:

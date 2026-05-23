@@ -1,0 +1,31 @@
+srun: error: Couldn't find the specified plugin name for mpi/pmix looking at all files
+srun: error: cannot find mpi plugin for mpi/pmix
+srun: error: cannot create mpi context for mpi/pmix
+srun: error: invalid MPI type 'pmix', --mpi=list for acceptable types
+kenlm python bindings are not installed. Most likely you want to install it using: pip install https://github.com/kpu/kenlm/archive/master.zip
+kenlm python bindings are not installed. Most likely you want to install it using: pip install https://github.com/kpu/kenlm/archive/master.zip
+Some weights of APL were not initialized from the model checkpoint at nguyenvulebinh/wav2vec2-large-vi-vlsp2020 and are newly initialized: ['Acoustic_encoder.CNN.Conv2d.bias', 'Acoustic_encoder.CNN.Conv2d.weight', 'Acoustic_encoder.CNN.bn.bias', 'Acoustic_encoder.CNN.bn.num_batches_tracked', 'Acoustic_encoder.CNN.bn.running_mean', 'Acoustic_encoder.CNN.bn.running_var', 'Acoustic_encoder.CNN.bn.weight', 'Acoustic_encoder.CNN1.Conv2d.bias', 'Acoustic_encoder.CNN1.Conv2d.weight', 'Acoustic_encoder.CNN1.bn.bias', 'Acoustic_encoder.CNN1.bn.num_batches_tracked', 'Acoustic_encoder.CNN1.bn.running_mean', 'Acoustic_encoder.CNN1.bn.running_var', 'Acoustic_encoder.CNN1.bn.weight', 'Acoustic_encoder.RNN.bilstm.bias_hh_l0', 'Acoustic_encoder.RNN.bilstm.bias_hh_l0_reverse', 'Acoustic_encoder.RNN.bilstm.bias_ih_l0', 'Acoustic_encoder.RNN.bilstm.bias_ih_l0_reverse', 'Acoustic_encoder.RNN.bilstm.weight_hh_l0', 'Acoustic_encoder.RNN.bilstm.weight_hh_l0_reverse', 'Acoustic_encoder.RNN.bilstm.weight_ih_l0', 'Acoustic_encoder.RNN.bilstm.weight_ih_l0_reverse', 'Acoustic_encoder.RNN.bn.bias', 'Acoustic_encoder.RNN.bn.num_batches_tracked', 'Acoustic_encoder.RNN.bn.running_mean', 'Acoustic_encoder.RNN.bn.running_var', 'Acoustic_encoder.RNN.bn.weight', 'Acoustic_encoder.RNN1.bilstm.bias_hh_l0', 'Acoustic_encoder.RNN1.bilstm.bias_hh_l0_reverse', 'Acoustic_encoder.RNN1.bilstm.bias_ih_l0', 'Acoustic_encoder.RNN1.bilstm.bias_ih_l0_reverse', 'Acoustic_encoder.RNN1.bilstm.weight_hh_l0', 'Acoustic_encoder.RNN1.bilstm.weight_hh_l0_reverse', 'Acoustic_encoder.RNN1.bilstm.weight_ih_l0', 'Acoustic_encoder.RNN1.bilstm.weight_ih_l0_reverse', 'Acoustic_encoder.RNN1.bn.bias', 'Acoustic_encoder.RNN1.bn.num_batches_tracked', 'Acoustic_encoder.RNN1.bn.running_mean', 'Acoustic_encoder.RNN1.bn.running_var', 'Acoustic_encoder.RNN1.bn.weight', 'Linguistic_encoder.bilstm.bias_hh_l0', 'Linguistic_encoder.bilstm.bias_hh_l0_reverse', 'Linguistic_encoder.bilstm.bias_ih_l0', 'Linguistic_encoder.bilstm.bias_ih_l0_reverse', 'Linguistic_encoder.bilstm.weight_hh_l0', 'Linguistic_encoder.bilstm.weight_hh_l0_reverse', 'Linguistic_encoder.bilstm.weight_ih_l0', 'Linguistic_encoder.bilstm.weight_ih_l0_reverse', 'Linguistic_encoder.embedding.weight', 'Linguistic_encoder.fc1.bias', 'Linguistic_encoder.fc1.weight', 'Linguistic_encoder.fc3.bias', 'Linguistic_encoder.fc3.weight', 'Phonetic_encoder.CNN.Conv2d.bias', 'Phonetic_encoder.CNN.Conv2d.weight', 'Phonetic_encoder.CNN.bn.bias', 'Phonetic_encoder.CNN.bn.num_batches_tracked', 'Phonetic_encoder.CNN.bn.running_mean', 'Phonetic_encoder.CNN.bn.running_var', 'Phonetic_encoder.CNN.bn.weight', 'Phonetic_encoder.RNN.bilstm.bias_hh_l0', 'Phonetic_encoder.RNN.bilstm.bias_hh_l0_reverse', 'Phonetic_encoder.RNN.bilstm.bias_ih_l0', 'Phonetic_encoder.RNN.bilstm.bias_ih_l0_reverse', 'Phonetic_encoder.RNN.bilstm.weight_hh_l0', 'Phonetic_encoder.RNN.bilstm.weight_hh_l0_reverse', 'Phonetic_encoder.RNN.bilstm.weight_ih_l0', 'Phonetic_encoder.RNN.bilstm.weight_ih_l0_reverse', 'Phonetic_encoder.RNN.bn.bias', 'Phonetic_encoder.RNN.bn.num_batches_tracked', 'Phonetic_encoder.RNN.bn.running_mean', 'Phonetic_encoder.RNN.bn.running_var', 'Phonetic_encoder.RNN.bn.weight', 'fc1.bias', 'fc1.weight', 'multihead_attn.in_proj_bias', 'multihead_attn.k_proj_weight', 'multihead_attn.out_proj.bias', 'multihead_attn.out_proj.weight', 'multihead_attn.q_proj_weight', 'multihead_attn.v_proj_weight', 'torchfbank.0.flipped_filter', 'torchfbank.1.mel_scale.fb', 'torchfbank.1.spectrogram.window']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+Found entries of length > 1 in alphabet. This is unusual unless style is BPE, but the alphabet was not recognized as BPE type. Is this correct?
+Space token ' ' missing from vocabulary.
+  0%|          | 0/796 [00:00<?, ?it/s]/home/user14/trungnt/mdd/l2_arctic_framework/dataset.py:103: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at  /opt/conda/conda-bld/pytorch_1646755903507/work/torch/csrc/utils/tensor_new.cpp:210.)
+  input_values = torch.tensor(inputs.input_values, device=device)
+  0%|          | 0/796 [00:01<?, ?it/s]
+Traceback (most recent call last):
+  File "main.py", line 37, in <module>
+    main()
+  File "main.py", line 33, in main
+    trainer.train()
+  File "/home/user14/trungnt/mdd/l2_arctic_framework/trainer.py", line 76, in train
+    running_loss = self._train_one_epoch(epoch)
+  File "/home/user14/trungnt/mdd/l2_arctic_framework/trainer.py", line 105, in _train_one_epoch
+    logits = self.model(waveform, input_values, linguistic)
+  File "/home/user14/miniconda3/envs/trung/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/user14/trungnt/mdd/l2_arctic_framework/apl_model.py", line 227, in forward
+    output = self.fc1(before_Linear)
+  File "/home/user14/miniconda3/envs/trung/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/user14/miniconda3/envs/trung/lib/python3.8/site-packages/torch/nn/modules/linear.py", line 103, in forward
+    return F.linear(input, self.weight, self.bias)
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (1124x4096 and 3072x123)
