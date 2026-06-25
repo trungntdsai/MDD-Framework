@@ -16,15 +16,17 @@ from utils import (
     BLANK_TOKEN_ID,
     SAMPLE_RATE,
     PAD_TOKEN_ID,
-    CTC_LABELS,
     build_feature_extractor,
     canonical_time_to_tensor,
-    create_decoder,
     get_device,
     load_vocab,
     text_to_tensor,
 )
 
+with open("vocab.json", "r", encoding="utf-8") as f:
+    vocab = json.load(f)
+if "" in vocab:
+    vocab["<eps>"] = vocab.pop("")
 
 class MDDTrainer:
     def __init__(self, args):
@@ -33,6 +35,9 @@ class MDDTrainer:
         print(f"Training device: {self.device}")
         self.feature_extractor = build_feature_extractor()
         self.vocab = load_vocab(args.vocab_path)
+        new_vocab = load_vocab(args.vocab_path)
+        new_vocab["<eps>"] = new_vocab.pop("")
+        self.CTC_LABELS = list(new_vocab.keys())
 
         self.df_train = pd.read_csv(args.train_csv)
         self.df_dev = pd.read_csv(args.dev_csv)
@@ -62,7 +67,7 @@ class MDDTrainer:
         labels = [None] * len(self.vocab)
         for tok, idx in self.vocab.items():
             labels[idx] = tok
-        self.decoder_ctc = build_ctcdecoder(labels=CTC_LABELS)
+        self.decoder_ctc = build_ctcdecoder(labels=self.CTC_LABELS)
         self.id2token = {idx: tok for tok, idx in self.vocab.items()}
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=args.learning_rate)
         self.ctc_loss = nn.CTCLoss(blank=BLANK_TOKEN_ID)

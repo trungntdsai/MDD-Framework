@@ -13,7 +13,7 @@ PAD_TOKEN_ID = 0
 BLANK_TOKEN_ID = 0
 ERROR_PAD_ID = 2
 
-with open("ups_vocab.json", "r", encoding="utf-8") as f:
+with open("vocab.json", "r", encoding="utf-8") as f:
     vocab = json.load(f)
 if "" in vocab:
     vocab["<eps>"] = vocab.pop("")
