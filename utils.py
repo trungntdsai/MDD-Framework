@@ -13,13 +13,6 @@ PAD_TOKEN_ID = 0
 BLANK_TOKEN_ID = 0
 ERROR_PAD_ID = 2
 
-with open("vocab.json", "r", encoding="utf-8") as f:
-    vocab = json.load(f)
-if "" in vocab:
-    vocab["<eps>"] = vocab.pop("")
-
-CTC_LABELS = list(vocab.keys())
-
 
 def get_device() -> torch.device:
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
