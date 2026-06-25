@@ -15,6 +15,15 @@
 
 import csv
 import argparse
+import sys
+from pathlib import Path
+
+
+APL_DIR = Path(__file__).resolve().parents[1] / "APL"
+if str(APL_DIR) not in sys.path:
+    sys.path.insert(0, str(APL_DIR))
+
+from metric import calculate_all_metrics
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +106,30 @@ def _align_pair(s1, s2):
 def _read_csv(path):
     with open(path, newline='', encoding='utf-8') as f:
         return list(csv.DictReader(f))
+
+
+def _tokenize_phone_string(text):
+    return text.replace("*", "").replace("$", "").split()
+
+
+def compute_apl_metrics(ground_truth_path, results_path):
+    gt = _read_csv(ground_truth_path)
+    res = _read_csv(results_path)
+
+    assert "canonical" in gt[0], "ground_truth.csv must have a 'canonical' column"
+    assert "transcript" in gt[0], "ground_truth.csv must have a 'transcript' column"
+    assert "predict" in res[0], "results.csv must have a 'predict' column"
+
+    hypotheses = []
+    transcripts = []
+    canonicals = []
+
+    for gt_row, res_row in zip(gt, res):
+        canonicals.append(_tokenize_phone_string(gt_row["canonical"]))
+        transcripts.append(_tokenize_phone_string(gt_row["transcript"]))
+        hypotheses.append(_tokenize_phone_string(res_row["predict"]))
+
+    return calculate_all_metrics(hypotheses, transcripts, canonicals)
 
 
 # ---------------------------------------------------------------------------
@@ -327,11 +360,23 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    apl_metrics = compute_apl_metrics(args.ground_truth_path, args.results_path)
     f1 = compute_f1(args.ground_truth_path, args.results_path)
     per = compute_per(args.ground_truth_path, args.results_path)
     der = compute_der(args.ground_truth_path, args.results_path)
 
-
+    for key in [
+        "PR_Correctness",
+        "PR_Accuracy",
+        "MDD_Detection_Accuracy",
+        "MDD_Precision",
+        "MDD_Recall",
+        "MDD_F_measure",
+        "MDD_FAR",
+        "MDD_FRR",
+        "MDD_DER",
+    ]:
+        print(f"{key}: {apl_metrics[key]:f}")
     print("F1: {:f}".format(f1))
     print(f"PER: {per}")
     print(f"DER: {der}")

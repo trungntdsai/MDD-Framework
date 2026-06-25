@@ -1,122 +1,121 @@
-    import os
+import os
 
-    import librosa
-    import pandas as pd
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-    from jiwer import wer
-    from pyctcdecode import build_ctcdecoder
-    from torch.utils.data import DataLoader
-    from tqdm import tqdm
+import librosa
+import pandas as pd
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from jiwer import wer
+from pyctcdecode import build_ctcdecoder
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-    from dataset import MDDDataset, make_collate_fn
-    from apl_model import APL
-    from utils import (
-        BLANK_TOKEN_ID,
-        SAMPLE_RATE,
-        PAD_TOKEN_ID,
-        CTC_LABELS,
-        build_feature_extractor,
-        canonical_time_to_tensor,
-        create_decoder,
-        get_device,
-        load_vocab,
-        text_to_tensor,
-    )
-
-
-    class MDDTrainer:
-        def __init__(self, args):
-            self.args = args
-            self.device = get_device()
-            print(f"Training device: {self.device}")
-            self.feature_extractor = build_feature_extractor()
-            self.vocab = load_vocab(args.vocab_path)
-
-            self.df_train = pd.read_csv(args.train_csv)
-            self.df_dev = pd.read_csv(args.dev_csv)
-
-            self.train_dataset = MDDDataset(self.df_train, wav_dir=args.train_wav_dir, vocab=self.vocab)
-            self.train_loader = DataLoader(
-                dataset=self.train_dataset,
-                batch_size=args.batch_size,
-                shuffle=True,
-                collate_fn=make_collate_fn(args.mode, self.feature_extractor, self.device, self.vocab),
-            )
-
-            self.dev_dataset = MDDDataset(self.df_dev, wav_dir=self.args.dev_wav_dir, vocab=self.vocab)
-            self.dev_loader = DataLoader(
-                dataset=self.dev_dataset,
-                batch_size=1,
-                shuffle=False,
-                collate_fn=make_collate_fn(args.mode, self.feature_extractor, self.device, self.vocab),
-            )
-
-            model_cls = APL
-            self.model = model_cls.from_pretrained(args.pretrained_model)
-            self.model.freeze_feature_extractor()
-            self.model = self.model.to(self.device)
-            self._print_trainable_parameters()
-
-            # Build CTC decoder using the same label ordering as the model vocab
-            labels = [None] * len(self.vocab)
-            for tok, idx in self.vocab.items():
-                labels[idx] = tok
-            self.decoder_ctc = build_ctcdecoder(labels=CTC_LABELS)
-            self.id2token = {idx: tok for tok, idx in self.vocab.items()}
-            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=args.learning_rate)
-            self.ctc_loss = nn.CTCLoss(blank=BLANK_TOKEN_ID)
-            self.min_wer = 100.0
-
-            os.makedirs(args.checkpoint_dir, exist_ok=True)
-
-        def train(self):
-            for epoch in range(self.args.num_epoch):
-                running_loss = self._train_one_epoch(epoch)
-                print(f"Training loss: {sum(running_loss) / len(running_loss)}")
-                if epoch >= self.args.eval_start_epoch:
-                    epoch_wer = self._evaluate()
-                    if epoch_wer < self.min_wer:
-                        print('save_checkpoint...')
-                        self.min_wer = epoch_wer
-                        ckpt_name = f"checkpoint_{self.args.mode}.pth"
-                        ckpt_path = os.path.join(self.args.checkpoint_dir, ckpt_name)
-                        torch.save(self.model.state_dict(), ckpt_path)
-
-                    print(f"wer checkpoint {epoch}: {epoch_wer}")
-                    print(f"min_wer: {self.min_wer}")
+from dataset import MDDDataset, make_collate_fn
+from model import PromptFiLMCTC
+from utils import (
+    BLANK_TOKEN_ID,
+    SAMPLE_RATE,
+    PAD_TOKEN_ID,
+    CTC_LABELS,
+    build_feature_extractor,
+    canonical_time_to_tensor,
+    create_decoder,
+    get_device,
+    load_vocab,
+    text_to_tensor,
+)
 
 
-        def _train_one_epoch(self, epoch):
-            self.model.train().to(self.device)
-            running_loss = []
-            print(f"EPOCH {epoch}:")
-            worderrorrate = []
+class MDDTrainer:
+    def __init__(self, args):
+        self.args = args
+        self.device = get_device()
+        print(f"Training device: {self.device}")
+        self.feature_extractor = build_feature_extractor()
+        self.vocab = load_vocab(args.vocab_path)
 
-            for batch_idx, data in tqdm(enumerate(self.train_loader), total=len(self.train_loader)):
-                # 1. Unpack thêm wav_lengths dựa theo số lượng item trả về từ collate_fn
-                if self.args.mode == 'wl':
-                    waveform, input_values, linguistic, labels, target_lengths, wav_lengths = data
-                    input_lengths = self.model._get_feat_extract_output_lengths(wav_lengths)
-                elif self.args.mode == 'mfa':
-                    acoustic, linguistic, labels, target_lengths, wav_lengths = data
+        self.df_train = pd.read_csv(args.train_csv)
+        self.df_dev = pd.read_csv(args.dev_csv)
 
-                logits = self.model(waveform, input_values, linguistic)
+        self.train_dataset = MDDDataset(self.df_train, wav_dir=args.train_wav_dir, vocab=self.vocab)
+        self.train_loader = DataLoader(
+            dataset=self.train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            collate_fn=make_collate_fn(args.mode, self.feature_extractor, self.device, self.vocab),
+        )
 
-                logits = logits.transpose(0, 1)
+        self.dev_dataset = MDDDataset(self.df_dev, wav_dir=self.args.dev_wav_dir, vocab=self.vocab)
+        self.dev_loader = DataLoader(
+            dataset=self.dev_dataset,
+            batch_size=1,
+            shuffle=False,
+            collate_fn=make_collate_fn(args.mode, self.feature_extractor, self.device, self.vocab),
+        )
+
+        self.model = PromptFiLMCTC()
+
+        self.model = self.model.to(self.device)
+        self._print_trainable_parameters()
+
+        # Build CTC decoder using the same label ordering as the model vocab
+        labels = [None] * len(self.vocab)
+        for tok, idx in self.vocab.items():
+            labels[idx] = tok
+        self.decoder_ctc = build_ctcdecoder(labels=CTC_LABELS)
+        self.id2token = {idx: tok for tok, idx in self.vocab.items()}
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=args.learning_rate)
+        self.ctc_loss = nn.CTCLoss(blank=BLANK_TOKEN_ID)
+        self.min_wer = 100.0
+
+        os.makedirs(args.checkpoint_dir, exist_ok=True)
+
+    def train(self):
+        for epoch in range(self.args.num_epoch):
+            running_loss = self._train_one_epoch(epoch)
+            print(f"Training loss: {sum(running_loss) / len(running_loss)}")
+            if epoch >= self.args.eval_start_epoch:
+                epoch_wer = self._evaluate()
+                if epoch_wer < self.min_wer:
+                    print('save_checkpoint...')
+                    self.min_wer = epoch_wer
+                    ckpt_name = f"checkpoint_prompt_film.pth"
+                    ckpt_path = os.path.join(self.args.checkpoint_dir, ckpt_name)
+                    torch.save(self.model.state_dict(), ckpt_path)
+
+                print(f"wer checkpoint {epoch}: {epoch_wer}")
+                print(f"min_wer: {self.min_wer}")
 
 
-                logits = F.log_softmax(logits, dim=2)
+    def _train_one_epoch(self, epoch):
+        self.model.train().to(self.device)
+        running_loss = []
+        print(f"EPOCH {epoch}:")
+        worderrorrate = []
 
-                loss = self.ctc_loss(logits, labels, input_lengths, target_lengths)
+        for batch_idx, data in tqdm(enumerate(self.train_loader), total=len(self.train_loader)):
+            # 1. Unpack thêm wav_lengths dựa theo số lượng item trả về từ collate_fn
+            if self.args.mode == 'wl':
+                waveform, input_values, linguistic, labels, target_lengths, wav_lengths = data
+                input_lengths = self.model.wav2vec2._get_feat_extract_output_lengths(wav_lengths)
+            elif self.args.mode == 'mfa':
+                acoustic, linguistic, labels, target_lengths, wav_lengths = data
 
-                running_loss.append(loss.item())
-                loss.backward()
-                self.optimizer.step()
-                self.optimizer.zero_grad()
+            logits = self.model(waveform, linguistic)
 
-            return running_loss
+            logits = logits.transpose(0, 1)
+
+
+            logits = F.log_softmax(logits, dim=2)
+
+            loss = self.ctc_loss(logits, labels, input_lengths, target_lengths)
+
+            running_loss.append(loss.item())
+            loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+
+        return running_loss
 
     def _print_trainable_parameters(self):
         total_params = sum(parameter.numel() for parameter in self.model.parameters())
@@ -176,9 +175,9 @@
                 elif self.args.mode == 'mfa':
                     acoustic, linguistic, labels, target_lengths, wav_lengths, canonical_time = data
 
-                logits = self.model(waveform, input_values, linguistic)
+                logits = self.model(waveform, linguistic)
                 logits = F.log_softmax(logits, dim=2)
-                input_lengths = self.model._get_feat_extract_output_lengths(wav_lengths)
+                input_lengths = self.model.wav2vec2._get_feat_extract_output_lengths(wav_lengths)
 
                 for b in range(logits.shape[0]):
                     valid_len = input_lengths[b].item()
@@ -203,7 +202,7 @@
         Each line in the output CSV contains the space-separated token hypothesis for the
         corresponding input audio path.
         """
-        state_dict = torch.load(checkpoint)
+        state_dict = torch.load(checkpoint, map_location="cpu")
         self.model.load_state_dict(state_dict)
         self.model.eval().to(self.device)
         df = pd.read_csv(csv_path)
@@ -214,8 +213,6 @@
 
         results = []
 
-        # padding id for linguistic embedding (model embedding uses vocab_size as padding idx)
-        pad_id = len(self.vocab)
         with torch.no_grad():
             for i in range(0, len(paths), batch_size):
                 batch_paths = paths[i : i + batch_size]
@@ -238,25 +235,26 @@
                     waveforms.append(audio)
                     wav_lengths.append(len(audio))
 
-                # feature extraction
-                inputs = self.feature_extractor(waveforms, sampling_rate=SAMPLE_RATE, padding=True, return_tensors='pt')
-                input_values = inputs.input_values.to(self.device)
+                max_wav_len = max((len(wav) for wav in waveforms), default=1)
+                waveform = torch.zeros((len(waveforms), max_wav_len), dtype=torch.float32, device=self.device)
+                for j, audio in enumerate(waveforms):
+                    waveform[j, : len(audio)] = torch.tensor(audio, dtype=torch.float32, device=self.device)
+
                 wav_lengths = torch.tensor(wav_lengths, dtype=torch.long, device=self.device)
 
                 # build canonical token tensor from CSV column and pad to batch max length
                 batch_can = canonicals_all[i : i + batch_size]
                 token_lists = [text_to_tensor(t, self.vocab) for t in batch_can]
                 max_can_len = max((len(t) for t in token_lists), default=1)
-                canonical = torch.full((input_values.shape[0], max_can_len), fill_value=PAD_TOKEN_ID, dtype=torch.long, device=self.device)
+                canonical = torch.full((waveform.shape[0], max_can_len), fill_value=PAD_TOKEN_ID, dtype=torch.long, device=self.device)
                 for j, toks in enumerate(token_lists):
                     if toks:
                         canonical[j, : len(toks)] = torch.tensor(toks, dtype=torch.long, device=self.device)
 
                 # forward
-                with torch.no_grad():
-                    input_lengths = self.model._get_feat_extract_output_lengths(wav_lengths)
-                    logits = self.model(input_values, input_values, canonical)
-                    logits = F.log_softmax(logits, dim=2)
+                input_lengths = self.model.wav2vec2._get_feat_extract_output_lengths(wav_lengths)
+                logits = self.model(waveform, canonical)
+                logits = F.log_softmax(logits, dim=2)
 
                 for b in range(logits.shape[0]):
                     valid_len = int(input_lengths[b].item())

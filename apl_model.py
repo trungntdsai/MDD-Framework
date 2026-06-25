@@ -45,13 +45,14 @@ def calc_length(
     return lengths.to(dtype=torch.int)
 
 class PhoneCNNStack(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self):
         super().__init__()
 
+        # self.fc = nn.Linear(1024,768)
         self.Conv2d = nn.Conv2d(1, 1, 3, 1, 1)
         self.reLU = nn.ReLU()
         self.drop_out = nn.Dropout(p=0.2)
-        self.bn = nn.BatchNorm1d(hidden_dim)
+        self.bn = nn.BatchNorm1d(768)
 
     def forward(self, x):
         if x.dim() == 3:
@@ -65,12 +66,12 @@ class PhoneCNNStack(nn.Module):
 
 
 class PhoneRNNStack(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self):
         super().__init__()
         self.reLU = nn.ReLU()
         self.drop_out = nn.Dropout(p=0.2)
-        self.bn = nn.BatchNorm1d(hidden_dim)
-        self.bilstm = nn.LSTM(input_size=hidden_dim, hidden_size=hidden_dim//2, bidirectional=True, batch_first=True)
+        self.bn = nn.BatchNorm1d(768)
+        self.bilstm = nn.LSTM(input_size=768, hidden_size=384, bidirectional=True, batch_first=True)
 
     def forward(self, x):
         x, _ = self.bilstm(x)
@@ -81,14 +82,34 @@ class PhoneRNNStack(nn.Module):
 
 
 class Phonetic_encoder(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self):
         super().__init__()
-        self.CNN = PhoneCNNStack(hidden_dim=hidden_dim)
-        self.RNN = PhoneRNNStack(hidden_dim=hidden_dim)
+        self.CNN = PhoneCNNStack()
+        self.RNN = PhoneRNNStack()
 
     def forward(self, x):
         x = self.CNN(x)
         x = self.RNN(x)
+        return x
+    
+class AcousticCNNStack1(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.bn = nn.BatchNorm1d(80)
+        self.Conv2d = nn.Conv2d(1, 1, 3, 1, 1)
+        self.reLU = nn.ReLU()
+        self.drop_out = nn.Dropout(p=0.2)
+
+    def forward(self, x):
+        if x.dim() == 3:
+            x = x.unsqueeze(1)
+        x = self.Conv2d(x)
+        x = x.squeeze(1)
+        x = self.bn(x)
+        x = self.reLU(x)
+        x = self.drop_out(x)
+
         return x
 
 
@@ -114,13 +135,13 @@ class AcousticCNNStack(nn.Module):
 
 
 class AcousticRNNStack1(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self):
         super().__init__()
 
         self.reLU = nn.ReLU()
         self.drop_out = nn.Dropout(p=0.2)
-        self.bilstm = nn.LSTM(input_size=80, hidden_size=hidden_dim//2, bidirectional=True, batch_first=True)
-        self.bn = nn.BatchNorm1d(hidden_dim)
+        self.bilstm = nn.LSTM(input_size=80, hidden_size=384, bidirectional=True, batch_first=True)
+        self.bn = nn.BatchNorm1d(768)
 
     def forward(self, x):
         x = x.transpose(1, 2)
@@ -129,14 +150,15 @@ class AcousticRNNStack1(nn.Module):
         x = self.drop_out(x)
         return x
 
+
 class AcousticRNNStack(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self):
         super().__init__()
 
         self.reLU = nn.ReLU()
         self.drop_out = nn.Dropout(p=0.2)
-        self.bilstm = nn.LSTM(input_size=hidden_dim, hidden_size=hidden_dim//2, bidirectional=True, batch_first=True)
-        self.bn = nn.BatchNorm1d(hidden_dim)
+        self.bilstm = nn.LSTM(input_size=768, hidden_size=384, bidirectional=True, batch_first=True)
+        self.bn = nn.BatchNorm1d(768)
 
     def forward(self, x):
         x, _ = self.bilstm(x)
@@ -146,13 +168,13 @@ class AcousticRNNStack(nn.Module):
 
 
 class Acoustic_encoder(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self):
         super().__init__()
 
-        self.CNN1 = AcousticCNNStack()
+        self.CNN1 = AcousticCNNStack1()
         self.CNN = AcousticCNNStack()
-        self.RNN = AcousticRNNStack(hidden_dim=hidden_dim)
-        self.RNN1 = AcousticRNNStack1(hidden_dim=hidden_dim)
+        self.RNN = AcousticRNNStack()
+        self.RNN1 = AcousticRNNStack1()
 
     def forward(self, x):
         x = self.CNN1(x)
@@ -181,16 +203,16 @@ class Linguistic_encoder(nn.Module):
         return x, y
     
 class APL(Wav2Vec2PreTrainedModel):
-    def __init__(self, config, hidden_dim=1024):
+    def __init__(self, config):
         super().__init__(config)
         self.wav2vec2 = Wav2Vec2Model(config)
-        self.Acoustic_encoder = Acoustic_encoder(hidden_dim=hidden_dim)
-        self.Phonetic_encoder = Phonetic_encoder(hidden_dim=hidden_dim)
+        self.Acoustic_encoder = Acoustic_encoder()
+        self.Phonetic_encoder = Phonetic_encoder()
         self.Linguistic_encoder = Linguistic_encoder()
         # self.text_to_tensor = text_to_tensor
         # self.tensor_to_text = tensor_to_text
-        self.fc1 = nn.Linear(hidden_dim*4, 123, bias=True)
-        self.multihead_attn = nn.MultiheadAttention(hidden_dim*2, 16, batch_first=True, kdim=2304, vdim=2304)
+        self.fc1 = nn.Linear(3072, 123, bias=True)
+        self.multihead_attn = nn.MultiheadAttention(1536, 16, batch_first=True, kdim=2304, vdim=2304)
         self.torchfbank = torch.nn.Sequential(
             PreEmphasis(),            
             torchaudio.transforms.MelSpectrogram(sample_rate=16000, n_fft=512, win_length=400, hop_length=160, 
