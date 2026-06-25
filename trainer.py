@@ -31,9 +31,7 @@ class MDDTrainer:
         print(f"Training device: {self.device}")
         self.feature_extractor = build_feature_extractor()
         self.vocab = load_vocab(args.vocab_path)
-        new_vocab = load_vocab(args.vocab_path)
-        new_vocab["<eps>"] = new_vocab.pop("")
-        self.CTC_LABELS = list(new_vocab.keys())
+        self.CTC_LABELS = list(self.vocab.keys())
 
         self.df_train = pd.read_csv(args.train_csv)
         self.df_dev = pd.read_csv(args.dev_csv)
