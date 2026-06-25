@@ -23,10 +23,6 @@ from utils import (
     text_to_tensor,
 )
 
-with open("vocab.json", "r", encoding="utf-8") as f:
-    vocab = json.load(f)
-if "" in vocab:
-    vocab["<eps>"] = vocab.pop("")
 
 class MDDTrainer:
     def __init__(self, args):
